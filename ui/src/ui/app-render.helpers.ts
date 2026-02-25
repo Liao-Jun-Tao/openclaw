@@ -1,6 +1,6 @@
 import { html } from "lit";
 import { repeat } from "lit/directives/repeat.js";
-import { t } from "../i18n/index.ts";
+import { i18n, t, type Locale } from "../i18n/index.ts";
 import { refreshChat } from "./app-chat.ts";
 import { syncUrlWithSessionKey } from "./app-settings.ts";
 import type { AppViewState } from "./app-view-state.ts";
@@ -477,5 +477,74 @@ function renderMonitorIcon() {
       <line x1="8" x2="16" y1="21" y2="21"></line>
       <line x1="12" x2="12" y1="17" y2="21"></line>
     </svg>
+  `;
+}
+
+/* ── Language short labels for topbar ─────────────────── */
+const LOCALE_SHORT: Record<string, string> = {
+  en: "EN",
+  "zh-CN": "中文",
+  "zh-TW": "繁中",
+  "pt-BR": "PT",
+};
+
+const LOCALE_OPTIONS: Array<{ value: Locale; labelKey: string }> = [
+  { value: "en", labelKey: "languages.en" },
+  { value: "zh-CN", labelKey: "languages.zhCN" },
+  { value: "zh-TW", labelKey: "languages.zhTW" },
+  { value: "pt-BR", labelKey: "languages.ptBR" },
+];
+
+export function renderLangToggle(state: AppViewState) {
+  const currentLocale = i18n.getLocale();
+  const shortLabel = LOCALE_SHORT[currentLocale] ?? currentLocale.toUpperCase();
+
+  const setLocale = (locale: Locale, detailsEl: HTMLDetailsElement) => {
+    void i18n.setLocale(locale);
+    state.applySettings({ ...state.settings, locale });
+    detailsEl.open = false;
+  };
+
+  return html`
+    <details class="lang-toggle">
+      <summary class="lang-toggle__button" aria-label="Language">
+        <svg
+          class="lang-toggle__icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+          <path d="M2 12h20"></path>
+        </svg>
+        <span class="lang-toggle__label">${shortLabel}</span>
+      </summary>
+      <ul class="lang-toggle__menu" role="listbox" aria-label="Language">
+        ${LOCALE_OPTIONS.map(
+          ({ value, labelKey }) => html`
+            <li
+              role="option"
+              aria-selected=${currentLocale === value}
+              class="lang-toggle__option ${
+                currentLocale === value ? "lang-toggle__option--active" : ""
+              }"
+              @click=${(e: MouseEvent) => {
+                const details = (e.currentTarget as HTMLElement).closest(
+                  "details",
+                ) as HTMLDetailsElement;
+                setLocale(value, details);
+              }}
+            >
+              ${t(labelKey)}
+            </li>
+          `,
+        )}
+      </ul>
+    </details>
   `;
 }
