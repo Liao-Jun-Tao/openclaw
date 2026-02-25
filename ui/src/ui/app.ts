@@ -369,6 +369,16 @@ export class OpenClawApp extends LitElement {
   @state() logsMaxBytes = 250_000;
   @state() logsAtBottom = true;
 
+  @state() modelsLoading = false;
+  @state() modelsCatalog: string[] = [];
+  @state() modelsDraft: import("./controllers/models.js").ModelsDraft | null = null;
+  @state() modelsConfigHash: string | null = null;
+  @state() modelsDirty = false;
+  @state() modelsSaving = false;
+  @state() modelsError: string | null = null;
+  @state() providerProbeStatus: Record<string, "idle" | "testing" | "ok" | "failed"> = {};
+  @state() providerProbeError: Record<string, string> = {};
+
   client: GatewayBrowserClient | null = null;
   private chatScrollFrame: number | null = null;
   private chatScrollTimeout: number | null = null;
@@ -608,6 +618,41 @@ export class OpenClawApp extends LitElement {
     const newRatio = Math.max(0.4, Math.min(0.7, ratio));
     this.splitRatio = newRatio;
     this.applySettings({ ...this.settings, splitRatio: newRatio });
+  }
+
+  async handleModelsLoad() {
+    const { loadModels } = await import("./controllers/models.ts");
+    await loadModels(this as unknown as Parameters<typeof loadModels>[0]);
+  }
+
+  handleModelsDraftUpdate<K extends keyof import("./controllers/models.js").ModelsDraft>(
+    key: K,
+    value: import("./controllers/models.js").ModelsDraft[K],
+  ) {
+    void import("./controllers/models.ts").then(({ updateModelsDraftField }) => {
+      updateModelsDraftField(
+        this as unknown as Parameters<typeof updateModelsDraftField>[0],
+        key,
+        value,
+      );
+      this.requestUpdate();
+    });
+  }
+
+  handleModelsDiscard() {
+    void import("./controllers/models.ts").then(({ discardModelsDraft }) => {
+      discardModelsDraft(this as unknown as Parameters<typeof discardModelsDraft>[0]);
+    });
+  }
+
+  async handleModelsSave() {
+    const { saveModels } = await import("./controllers/models.ts");
+    await saveModels(this as unknown as Parameters<typeof saveModels>[0]);
+  }
+
+  async handleModelsProbe(providerName: string) {
+    const { probeProvider } = await import("./controllers/models.ts");
+    await probeProvider(this as unknown as Parameters<typeof probeProvider>[0], providerName);
   }
 
   render() {
