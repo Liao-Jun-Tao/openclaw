@@ -36,6 +36,7 @@ export const en: TranslationMap = {
     config: "Config",
     debug: "Debug",
     logs: "Logs",
+    models: "Models",
   },
   subtitles: {
     agents: "Manage agent workspaces, tools, and identities.",
@@ -51,6 +52,7 @@ export const en: TranslationMap = {
     config: "Edit ~/.openclaw/openclaw.json safely.",
     debug: "Gateway snapshots, events, and manual RPC calls.",
     logs: "Live tail of the gateway file logs.",
+    models: "Configure AI models, providers, and fallback chains.",
   },
   overview: {
     access: {
@@ -112,6 +114,55 @@ export const en: TranslationMap = {
     thinkingToggle: "Toggle assistant thinking/working output",
     focusToggle: "Toggle focus mode (hide sidebar + page header)",
     onboardingDisabled: "Disabled during onboarding",
+  },
+  models: {
+    title: "Models",
+    subtitle: "Configure AI models, providers, and fallback chains.",
+    primary: {
+      title: "Primary Model",
+      hint: "The default model used for all sessions.",
+      notInCatalog: "not in catalog",
+      custom: "Custom…",
+    },
+    fallbacks: {
+      title: "Fallback Chain",
+      hint: "Tried in order if the primary model is unavailable.",
+      empty: "No fallbacks configured. The gateway will error if primary is unavailable.",
+      add: "Add fallback",
+    },
+    imageModel: {
+      title: "Image Model",
+      hint: "Optional. Used for image generation tasks.",
+      clear: "Clear",
+    },
+    providers: {
+      title: "Custom Providers",
+      hint: "Register additional OpenAI-compatible, Anthropic-compatible, or Gemini-compatible endpoints.",
+      add: "Add Provider",
+      remove: "Remove",
+      test: "Test",
+      testOk: "OK",
+      testFailed: "Failed",
+      modelCount: "{n} models",
+    },
+    form: {
+      name: "Name",
+      baseUrl: "Base URL",
+      protocol: "Protocol",
+      apiKey: "API Key",
+      models: "Models (one per line)",
+    },
+    actions: {
+      apply: "Apply & Restart",
+      discard: "Discard Changes",
+      unsaved: "Unsaved changes",
+    },
+    errors: {
+      primaryRequired: "Primary model is required.",
+      duplicateName: "Provider name already in use.",
+      loadFailed: "Failed to load configuration.",
+      saveFailed: "Failed to apply configuration.",
+    },
   },
   languages: {
     en: "English",

@@ -36,6 +36,7 @@ export const zh_CN: TranslationMap = {
     config: "配置",
     debug: "调试",
     logs: "日志",
+    models: "模型",
   },
   subtitles: {
     agents: "管理代理工作区、工具和身份。",
@@ -51,6 +52,7 @@ export const zh_CN: TranslationMap = {
     config: "安全地编辑 ~/.openclaw/openclaw.json。",
     debug: "网关快照、事件和手动 RPC 调用。",
     logs: "网关文件日志的实时追踪。",
+    models: "配置 AI 模型、提供商及备用链。",
   },
   overview: {
     access: {
@@ -111,6 +113,55 @@ export const zh_CN: TranslationMap = {
     thinkingToggle: "切换助手思考/工作输出",
     focusToggle: "切换专注模式 (隐藏侧边栏 + 页面页眉)",
     onboardingDisabled: "引导期间禁用",
+  },
+  models: {
+    title: "模型",
+    subtitle: "配置 AI 模型、提供商及备用链。",
+    primary: {
+      title: "主模型",
+      hint: "所有会话使用的默认模型。",
+      notInCatalog: "不在目录中",
+      custom: "自定义…",
+    },
+    fallbacks: {
+      title: "备用链",
+      hint: "主模型不可用时按顺序尝试。",
+      empty: "未配置备用模型。主模型不可用时网关将报错。",
+      add: "添加备用模型",
+    },
+    imageModel: {
+      title: "图像模型",
+      hint: "可选。用于图像生成任务。",
+      clear: "清除",
+    },
+    providers: {
+      title: "自定义提供商",
+      hint: "注册额外的 OpenAI 兼容、Anthropic 兼容或 Gemini 兼容端点。",
+      add: "添加提供商",
+      remove: "删除",
+      test: "测试",
+      testOk: "正常",
+      testFailed: "失败",
+      modelCount: "{n} 个模型",
+    },
+    form: {
+      name: "名称",
+      baseUrl: "基础 URL",
+      protocol: "协议",
+      apiKey: "API 密钥",
+      models: "模型（每行一个）",
+    },
+    actions: {
+      apply: "应用并重启",
+      discard: "放弃更改",
+      unsaved: "有未保存的更改",
+    },
+    errors: {
+      primaryRequired: "主模型不能为空。",
+      duplicateName: "提供商名称已被使用。",
+      loadFailed: "加载配置失败。",
+      saveFailed: "应用配置失败。",
+    },
   },
   languages: {
     en: "English",
