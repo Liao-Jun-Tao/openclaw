@@ -370,7 +370,7 @@ export class OpenClawApp extends LitElement {
   @state() logsAtBottom = true;
 
   @state() modelsLoading = false;
-  @state() modelsCatalog: string[] = [];
+  @state() modelsCatalog: import("./controllers/models.js").ModelCatalogEntry[] = [];
   @state() modelsDraft: import("./controllers/models.js").ModelsDraft | null = null;
   @state() modelsConfigHash: string | null = null;
   @state() modelsDirty = false;
@@ -378,6 +378,9 @@ export class OpenClawApp extends LitElement {
   @state() modelsError: string | null = null;
   @state() providerProbeStatus: Record<string, "idle" | "testing" | "ok" | "failed"> = {};
   @state() providerProbeError: Record<string, string> = {};
+  @state() modelsBrowserSearch = "";
+  @state() modelsBrowserProvider = "";
+  @state() modelTestState: import("./controllers/models.js").ModelTestState | null = null;
 
   client: GatewayBrowserClient | null = null;
   private chatScrollFrame: number | null = null;
@@ -653,6 +656,26 @@ export class OpenClawApp extends LitElement {
   async handleModelsProbe(providerName: string) {
     const { probeProvider } = await import("./controllers/models.ts");
     await probeProvider(this as unknown as Parameters<typeof probeProvider>[0], providerName);
+  }
+
+  async handleModelTest(modelId: string) {
+    const { beginModelTest } = await import("./controllers/models.ts");
+    await beginModelTest(this as unknown as Parameters<typeof beginModelTest>[0], modelId);
+  }
+
+  async handleModelTestSaveKey(provider: string, apiKey: string, modelId: string) {
+    const { saveKeyAndTest } = await import("./controllers/models.ts");
+    await saveKeyAndTest(
+      this as unknown as Parameters<typeof saveKeyAndTest>[0],
+      provider,
+      apiKey,
+      modelId,
+    );
+  }
+
+  handleModelTestDismiss() {
+    const state = this as unknown as { modelTestState: null };
+    state.modelTestState = null;
   }
 
   render() {

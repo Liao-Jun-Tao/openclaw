@@ -4,7 +4,7 @@ import type { CronFieldErrors } from "./controllers/cron.ts";
 import type { DevicePairingList } from "./controllers/devices.ts";
 import type { ExecApprovalRequest } from "./controllers/exec-approval.ts";
 import type { ExecApprovalsFile, ExecApprovalsSnapshot } from "./controllers/exec-approvals.ts";
-import type { ModelsDraft } from "./controllers/models.ts";
+import type { ModelCatalogEntry, ModelsDraft } from "./controllers/models.ts";
 import type { SkillMessage } from "./controllers/skills.ts";
 import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway.ts";
 import type { Tab } from "./navigation.ts";
@@ -260,7 +260,7 @@ export type AppViewState = {
   logsMaxBytes: number;
   logsAtBottom: boolean;
   modelsLoading: boolean;
-  modelsCatalog: string[];
+  modelsCatalog: ModelCatalogEntry[];
   modelsDraft: ModelsDraft | null;
   modelsConfigHash: string | null;
   modelsDirty: boolean;
@@ -268,6 +268,9 @@ export type AppViewState = {
   modelsError: string | null;
   providerProbeStatus: Record<string, "idle" | "testing" | "ok" | "failed">;
   providerProbeError: Record<string, string>;
+  modelsBrowserSearch: string;
+  modelsBrowserProvider: string;
+  modelTestState: import("./controllers/models.js").ModelTestState | null;
   updateAvailable: import("./types.js").UpdateAvailable | null;
   client: GatewayBrowserClient | null;
   refreshSessionsAfterChat: Set<string>;
@@ -334,6 +337,9 @@ export type AppViewState = {
   handleModelsDiscard: () => void;
   handleModelsSave: () => Promise<void>;
   handleModelsProbe: (providerName: string) => Promise<void>;
+  handleModelTest: (modelId: string) => Promise<void>;
+  handleModelTestSaveKey: (provider: string, apiKey: string, modelId: string) => Promise<void>;
+  handleModelTestDismiss: () => void;
   handleOpenSidebar: (content: string) => void;
   handleCloseSidebar: () => void;
   handleSplitRatioChange: (ratio: number) => void;
