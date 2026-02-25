@@ -1,0 +1,151 @@
+/* Models Tab */
+
+.models-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.models-custom-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.models-not-in-catalog {
+  font-size: 11px;
+}
+
+/* Fallback list */
+.models-fallback-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.models-fallback-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  cursor: grab;
+}
+
+.models-fallback-item:active {
+  cursor: grabbing;
+}
+
+.models-drag-handle {
+  color: var(--muted);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.models-fallback-model {
+  flex: 1;
+  font-size: 13px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+}
+
+.models-remove-btn {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.models-remove-btn:hover {
+  color: var(--danger, #ef4444);
+}
+
+.models-add-row {
+  display: grid;
+  gap: 6px;
+}
+
+/* Provider cards */
+.models-providers-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.models-provider-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
+}
+
+.models-provider-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+  background: var(--bg-elevated);
+  user-select: none;
+}
+
+.models-provider-summary::-webkit-details-marker {
+  display: none;
+}
+
+.models-provider-summary:hover {
+  background: var(--bg-hover);
+}
+
+.models-provider-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.models-provider-meta {
+  flex: 1;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.models-provider-form {
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.models-models-textarea {
+  min-height: 80px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 12px;
+  resize: vertical;
+}
+
+.models-provider-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+/* Action bar */
+.models-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+
+.models-unsaved-badge {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  margin-right: auto;
+}
