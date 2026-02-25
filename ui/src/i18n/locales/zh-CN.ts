@@ -114,8 +114,8 @@ export const zh_CN: TranslationMap = {
   },
   languages: {
     en: "English",
-    zhCN: "简体中文 (简体中文)",
-    zhTW: "繁體中文 (繁体中文)",
+    zhCN: "简体中文",
+    zhTW: "繁體中文",
     ptBR: "Português (巴西葡萄牙语)",
   },
 };
