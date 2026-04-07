@@ -5,6 +5,9 @@ import { createFileEditTool } from "./src/tools/file-edit-tool.js";
 import { createFileReadTool } from "./src/tools/file-read-tool.js";
 import { createGlobTool } from "./src/tools/glob-tool.js";
 import { createGrepTool } from "./src/tools/grep-tool.js";
+import { createCompactTool } from "./src/context/compact.js";
+import { createProgressTool, createBudgetTool } from "./src/progress.js";
+import { createThinkingTool } from "./src/thinking.js";
 
 export default definePluginEntry({
   id: "claude-code",
@@ -64,18 +67,37 @@ export default definePluginEntry({
       { name: "grep" },
     );
 
+    // Claude Code 增强工具
+    api.registerTool((ctx) => createCompactTool(), { name: "compact" });
+    api.registerTool((ctx) => createProgressTool(), { name: "progress" });
+    api.registerTool((ctx) => createBudgetTool(), { name: "budget" });
+    api.registerTool((ctx) => createThinkingTool(), { name: "think" });
+
     // Add system prompt guidance
     api.addToSystemPrompt(`
 ## Claude Code Compatibility Plugin
 
 This agent has access to Claude Code compatible tools:
 
-### Tools
+### Core Tools
 - \`bash\` - Execute shell commands (git, npm, build tools, etc.)
 - \`read\` - Read file contents with offset/limit support
 - \`edit\` - Make targeted file edits using oldText/newText replacement
 - \`glob\` - Find files by glob patterns (e.g., **/*.ts)
 - \`grep\` - Search file contents with regex support
+
+### Claude Code 增强工具
+- \`compact\` - Compact conversation context to reduce token usage
+- \`progress\` - View conversation progress and statistics
+- \`budget\` - View token budget status and remaining space
+- \`think\` - Enable thinking mode to show AI reasoning
+
+### Thinking Levels
+- \`off\` - No thinking (fastest)
+- \`low\` - 2,000 tokens (~2 seconds)
+- \`medium\` - 8,000 tokens (~8 seconds)
+- \`high\` - 15,000 tokens (~15 seconds)
+- \`ultra\` - 30,000 tokens (~30 seconds, Haiku 4.5+ only)
 
 ### Commands (prefix with /)
 - \`/commit\` - Create git commits with smart message generation
