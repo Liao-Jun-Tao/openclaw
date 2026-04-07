@@ -1,0 +1,81 @@
+{
+  "id": "claude-code",
+  "name": "Claude Code Compatibility",
+  "description": "Claude Code CLI tools and commands for OpenClaw - bash execution, file editing, git operations, code review, and coding agent with visible thinking.",
+  "enabledByDefault": true,
+  "skills": [
+    "./skills/commit",
+    "./skills/review",
+    "./skills/diff",
+    "./skills/branch",
+    "./skills/session",
+    "./skills/compact",
+    "./skills/model",
+    "./skills/config",
+    "./skills/theme",
+    "./skills/init",
+    "./skills/mcp",
+    "./skills/clear",
+    "./skills/rewind",
+    "./skills/doctor",
+    "./skills/resume",
+    "./skills/help",
+    "./skills/cost",
+    "./skills/usage",
+    "./skills/plan",
+    "./skills/hooks",
+    "./skills/status",
+    "./skills/coding",
+    "./skills/task",
+    "./skills/think",
+    "./skills/brief"
+  ],
+  "uiHints": {
+    "sandboxMode": {
+      "label": "Sandbox Mode",
+      "help": "Run bash commands in isolated sandbox environment"
+    },
+    "allowedCommands": {
+      "label": "Allowed Commands",
+      "help": "Comma-separated list of allowed bash commands (empty = all allowed)"
+    },
+    "readonlyMode": {
+      "label": "Read-Only Mode",
+      "help": "Disable file editing tools - read-only access"
+    },
+    "thinkingLevel": {
+      "label": "Default Thinking Level",
+      "help": "Default thinking visibility for coding tasks"
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "sandboxMode": {
+        "type": "boolean",
+        "default": false
+      },
+      "allowedCommands": {
+        "type": "array",
+        "items": { "type": "string" },
+        "default": []
+      },
+      "readonlyMode": {
+        "type": "boolean",
+        "default": false
+      },
+      "maxBashTimeoutMs": {
+        "type": "integer",
+        "minimum": 1000,
+        "maximum": 600000,
+        "default": 300000
+      },
+      "thinkingLevel": {
+        "type": "string",
+        "enum": ["off", "low", "medium", "high"],
+        "default": "medium"
+      }
+    }
+  }
+}
