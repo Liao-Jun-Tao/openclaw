@@ -1,5 +1,10 @@
 import { parseAgentSessionKey } from "../sessions/session-key-utils.js";
-import { asString, extractTextFromMessage, isCommandMessage } from "./tui-formatters.js";
+import {
+  asString,
+  extractTextFromMessage,
+  extractThinkingFromMessage,
+  isCommandMessage,
+} from "./tui-formatters.js";
 import { TuiStreamAssembler } from "./tui-stream-assembler.js";
 import type { AgentEvent, BtwEvent, ChatEvent, TuiStateAccess } from "./tui-types.js";
 
@@ -14,6 +19,9 @@ type EventHandlerChatLog = {
   updateAssistant: (text: string, runId: string) => void;
   finalizeAssistant: (text: string, runId: string) => void;
   dropAssistant: (runId: string) => void;
+  startThinking: (runId: string, text: string) => void;
+  updateThinking: (runId: string, text: string) => void;
+  finalizeThinking: (runId: string, text: string) => void;
 };
 
 type EventHandlerTui = {
@@ -240,7 +248,13 @@ export function createEventHandlers(context: EventHandlerContext) {
       }
     }
     if (evt.state === "delta") {
-      const displayText = streamAssembler.ingestDelta(evt.runId, evt.message, state.showThinking);
+      const thinkingText = extractThinkingFromMessage(evt.message);
+      if (thinkingText) {
+        chatLog.updateThinking(evt.runId, thinkingText);
+      }
+      // Always pass showThinking=false: thinking is routed to its own
+      // ThinkingMessageComponent above, not embedded in the assistant markdown.
+      const displayText = streamAssembler.ingestDelta(evt.runId, evt.message, false);
       if (!displayText) {
         return;
       }
@@ -276,6 +290,10 @@ export function createEventHandlers(context: EventHandlerContext) {
         return;
       }
       maybeRefreshHistoryForRun(evt.runId);
+      const finalThinking = extractThinkingFromMessage(evt.message);
+      if (finalThinking) {
+        chatLog.finalizeThinking(evt.runId, finalThinking);
+      }
       const stopReason =
         evt.message && typeof evt.message === "object" && !Array.isArray(evt.message)
           ? typeof (evt.message as Record<string, unknown>).stopReason === "string"
@@ -283,12 +301,7 @@ export function createEventHandlers(context: EventHandlerContext) {
             : ""
           : "";
 
-      const finalText = streamAssembler.finalize(
-        evt.runId,
-        evt.message,
-        state.showThinking,
-        evt.errorMessage,
-      );
+      const finalText = streamAssembler.finalize(evt.runId, evt.message, false, evt.errorMessage);
       const suppressEmptyExternalPlaceholder =
         finalText === "(no output)" && !isLocalRunId?.(evt.runId);
       if (suppressEmptyExternalPlaceholder) {
@@ -335,11 +348,7 @@ export function createEventHandlers(context: EventHandlerContext) {
     }
     if (evt.stream === "tool") {
       const verbose = state.sessionInfo.verboseLevel ?? "off";
-      const allowToolEvents = verbose !== "off";
       const allowToolOutput = verbose === "full";
-      if (!allowToolEvents) {
-        return;
-      }
       const data = evt.data ?? {};
       const phase = asString(data.phase, "");
       const toolCallId = asString(data.toolCallId, "");
@@ -347,6 +356,7 @@ export function createEventHandlers(context: EventHandlerContext) {
       if (!toolCallId) {
         return;
       }
+      // Always show tool start (name + spinner) regardless of verbose level
       if (phase === "start") {
         chatLog.startTool(toolCallId, toolName, data.args);
       } else if (phase === "update") {

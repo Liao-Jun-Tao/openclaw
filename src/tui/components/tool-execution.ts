@@ -17,6 +17,8 @@ type ToolResult = {
 };
 
 const PREVIEW_LINES = 12;
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
+const SPINNER_INTERVAL_MS = 80;
 
 function formatArgs(toolName: string, args: unknown): string {
   const display = resolveToolDisplay({ name: toolName, args });
@@ -52,10 +54,18 @@ function extractText(result?: ToolResult): string {
   return lines.join("\n").trim();
 }
 
+/** Tools considered read-only for auto-grouping purposes. */
+const READ_ONLY_TOOLS = new Set(["read", "glob", "grep", "search", "list_files", "file_read"]);
+
+export function isReadOnlyTool(toolName: string): boolean {
+  return READ_ONLY_TOOLS.has(toolName);
+}
+
 export class ToolExecutionComponent extends Container {
   private box: Box;
   private header: Text;
   private argsLine: Text;
+  private activityLine: Text;
   private output: Markdown;
   private toolName: string;
   private args: unknown;
@@ -63,6 +73,9 @@ export class ToolExecutionComponent extends Container {
   private expanded = false;
   private isError = false;
   private isPartial = true;
+  private spinnerFrame = 0;
+  private spinnerTimer: ReturnType<typeof setInterval> | null = null;
+  private _activityDescription = "";
 
   constructor(toolName: string, args: unknown) {
     super();
@@ -71,6 +84,7 @@ export class ToolExecutionComponent extends Container {
     this.box = new Box(1, 1, (line) => theme.toolPendingBg(line));
     this.header = new Text("", 0, 0);
     this.argsLine = new Text("", 0, 0);
+    this.activityLine = new Text("", 0, 0);
     this.output = new Markdown("", 0, 0, markdownTheme, {
       color: (line) => theme.toolOutput(line),
     });
@@ -78,8 +92,14 @@ export class ToolExecutionComponent extends Container {
     this.addChild(this.box);
     this.box.addChild(this.header);
     this.box.addChild(this.argsLine);
+    this.box.addChild(this.activityLine);
     this.box.addChild(this.output);
+    this.startSpinner();
     this.refresh();
+  }
+
+  get activityDescription(): string {
+    return this._activityDescription;
   }
 
   setArgs(args: unknown) {
@@ -92,10 +112,16 @@ export class ToolExecutionComponent extends Container {
     this.refresh();
   }
 
+  setActivityDescription(desc: string) {
+    this._activityDescription = desc;
+    this.refresh();
+  }
+
   setResult(result: ToolResult | undefined, opts?: { isError?: boolean }) {
     this.result = result;
     this.isPartial = false;
     this.isError = Boolean(opts?.isError);
+    this.stopSpinner();
     this.refresh();
   }
 
@@ -103,6 +129,37 @@ export class ToolExecutionComponent extends Container {
     this.result = result;
     this.isPartial = true;
     this.refresh();
+  }
+
+  getToolName(): string {
+    return this.toolName;
+  }
+
+  private startSpinner() {
+    if (this.spinnerTimer) {
+      return;
+    }
+    this.spinnerTimer = setInterval(() => {
+      this.spinnerFrame = (this.spinnerFrame + 1) % SPINNER_FRAMES.length;
+      this.refreshHeader();
+    }, SPINNER_INTERVAL_MS);
+  }
+
+  private stopSpinner() {
+    if (this.spinnerTimer) {
+      clearInterval(this.spinnerTimer);
+      this.spinnerTimer = null;
+    }
+  }
+
+  private refreshHeader() {
+    const display = resolveToolDisplay({
+      name: this.toolName,
+      args: this.args,
+    });
+    const spinner = this.isPartial ? ` ${SPINNER_FRAMES[this.spinnerFrame]}` : "";
+    const title = `${display.emoji} ${display.label}${spinner}`;
+    this.header.setText(theme.toolTitle(theme.bold(title)));
   }
 
   private refresh() {
@@ -113,15 +170,16 @@ export class ToolExecutionComponent extends Container {
         : theme.toolSuccessBg;
     this.box.setBgFn((line) => bg(line));
 
-    const display = resolveToolDisplay({
-      name: this.toolName,
-      args: this.args,
-    });
-    const title = `${display.emoji} ${display.label}${this.isPartial ? " (running)" : ""}`;
-    this.header.setText(theme.toolTitle(theme.bold(title)));
+    this.refreshHeader();
 
     const argLine = formatArgs(this.toolName, this.args);
     this.argsLine.setText(argLine ? theme.dim(argLine) : theme.dim(" "));
+
+    if (this._activityDescription && this.isPartial) {
+      this.activityLine.setText(theme.dim(`  ${this._activityDescription}`));
+    } else {
+      this.activityLine.setText("");
+    }
 
     const raw = extractText(this.result);
     const text = raw || (this.isPartial ? "…" : "");

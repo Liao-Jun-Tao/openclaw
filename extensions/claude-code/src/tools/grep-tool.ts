@@ -1,65 +1,59 @@
-import { Type } from "@sinclair/typebox";
-import type { AgentTool, AgentToolResult } from "@mariozechner/pi-agent-core";
-import { readStringParam } from "openclaw/plugin-sdk/param-readers.js";
-import type { ToolUseContext } from "openclaw/plugin-sdk/channel-contract.js";
 import path from "node:path";
-import { resolveClaudeCodeConfig, type ClaudeCodeConfig } from "../config.js";
+import { Type } from "@sinclair/typebox";
+import { readStringParam } from "openclaw/plugin-sdk/param-readers";
+import { buildTool } from "../build-tool.js";
+import type { ClaudeCodeConfig } from "../config.js";
+import { textResult } from "../tool-result.js";
 
-const GREP_TOOL_NAME = "grep";
-const GREP_TOOL_DESCRIPTION =
-  "Search for patterns in files. Use for finding code, text, or specific function/class definitions.";
+const GrepToolParameters = Type.Object(
+  {
+    pattern: Type.String({
+      description: "Regular expression or text pattern to search for",
+    }),
+    path: Type.Optional(Type.String({ description: "File or directory path to search in" })),
+    caseSensitive: Type.Optional(
+      Type.Boolean({ description: "Whether the search is case sensitive (default: false)" }),
+    ),
+    context: Type.Optional(
+      Type.Integer({
+        description: "Number of lines of context to show around matches",
+        minimum: 0,
+        maximum: 10,
+      }),
+    ),
+    include: Type.Optional(Type.String({ description: "File pattern filter (e.g., *.ts, *.js)" })),
+  },
+  { additionalProperties: false },
+);
 
-const GrepInputSchema = Type.Object({
-  pattern: Type.String({
-    description: "Regular expression or text pattern to search for",
-  }),
-  path: Type.Optional(
-    Type.String({ description: "File or directory path to search in" }),
-  ),
-  caseSensitive: Type.Optional(
-    Type.Boolean({ description: "Whether the search is case sensitive (default: false)" }),
-  ),
-  context: Type.Optional(
-    Type.Integer({ description: "Number of lines of context to show around matches", minimum: 0, maximum: 10 }),
-  ),
-  include: Type.Optional(
-    Type.String({ description: "File pattern filter (e.g., *.ts, *.js)" }),
-  ),
-});
+export function createGrepTool(config: ClaudeCodeConfig) {
+  return buildTool({
+    name: "grep",
+    description:
+      "Search for patterns in files. Use for finding code, text, or specific definitions.",
+    parameters: GrepToolParameters,
+    isReadOnly: true,
+    isConcurrencySafe: true,
+    isDestructive: false,
 
-type GrepInput = Type.Input<typeof GrepInputSchema>;
+    getActivityDescription(input) {
+      const p = input?.pattern;
+      return typeof p === "string" ? `Searching for "${p}"` : null;
+    },
 
-export function createGrepTool(params: {
-  context: ToolUseContext;
-  config: ClaudeCodeConfig;
-}): AgentTool {
-  const { config } = params;
-
-  return {
-    name: GREP_TOOL_NAME,
-    description: GREP_TOOL_DESCRIPTION,
-    inputSchema: GrepInputSchema,
-
-    async handle(params: Record<string, unknown>): Promise<AgentToolResult> {
-      const startTime = Date.now();
-
+    async execute(_toolCallId: string, rawParams: Record<string, unknown>) {
       try {
-        const pattern = readStringParam(params, "pattern", { required: true });
+        const pattern = readStringParam(rawParams, "pattern", { required: true });
         if (!pattern) {
-          return {
-            ok: false,
-            status: "failed",
-            result: { type: "text", text: "pattern is required" },
-          };
+          return textResult("pattern is required");
         }
 
-        const searchPath = (params.path as string) || process.cwd();
-        const caseSensitive = (params.caseSensitive as boolean) ?? false;
-        const contextLines = (params.context as number) || 0;
-        const includePattern = params.include as string | undefined;
+        const searchPath = (rawParams.path as string) || process.cwd();
+        const caseSensitive = (rawParams.caseSensitive as boolean) ?? false;
+        const contextLines = (rawParams.context as number) || 0;
+        const includePattern = rawParams.include as string | undefined;
 
         const resolvedPath = path.resolve(searchPath);
-
         const results = await grepSearch(pattern, {
           path: resolvedPath,
           caseSensitive,
@@ -67,42 +61,16 @@ export function createGrepTool(params: {
           includePattern,
         });
 
-        const durationMs = Date.now() - startTime;
-
         if (results.length === 0) {
-          return {
-            ok: true,
-            status: "completed",
-            result: { type: "text", text: "No matches found." },
-            metadata: { durationMs },
-          };
+          return textResult("No matches found.");
         }
-
-        return {
-          ok: true,
-          status: "completed",
-          result: {
-            type: "text",
-            text: results.join("\n"),
-          },
-          metadata: {
-            durationMs,
-            matchCount: results.length,
-          },
-        };
+        return textResult(results.join("\n"));
       } catch (error) {
-        const durationMs = Date.now() - startTime;
         const message = error instanceof Error ? error.message : String(error);
-
-        return {
-          ok: false,
-          status: "failed",
-          result: { type: "text", text: `Grep error: ${message}` },
-          metadata: { durationMs },
-        };
+        return textResult(`Grep error: ${message}`);
       }
     },
-  };
+  });
 }
 
 interface GrepOptions {
@@ -114,16 +82,13 @@ interface GrepOptions {
 
 async function grepSearch(pattern: string, options: GrepOptions): Promise<string[]> {
   const { path: searchPath, caseSensitive = false, contextLines = 0, includePattern } = options;
-
   const fs = await import("node:fs/promises");
   const results: string[] = [];
 
-  // Compile regex
   let regex: RegExp;
   try {
     regex = new RegExp(pattern, caseSensitive ? "g" : "gi");
   } catch {
-    // If invalid regex, treat as literal string
     const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     regex = new RegExp(escaped, caseSensitive ? "g" : "gi");
   }
@@ -142,28 +107,23 @@ async function grepSearch(pattern: string, options: GrepOptions): Promise<string
     for (let i = 0; i < lines.length; i++) {
       if (regex.test(lines[i])) {
         matches.push({ lineNo: i + 1, line: lines[i] });
-        regex.lastIndex = 0; // Reset for next test
+        regex.lastIndex = 0;
       }
     }
 
     if (matches.length > 0) {
       const relativePath = path.relative(process.cwd(), filePath);
-
       for (const match of matches) {
         let resultLine = `${relativePath}:${match.lineNo}: ${match.line}`;
-
-        // Add context lines
         if (contextLines > 0) {
           const startCtx = Math.max(0, match.lineNo - contextLines - 1);
           const endCtx = Math.min(lines.length, match.lineNo + contextLines);
-
           for (let j = startCtx; j < endCtx; j++) {
             if (j + 1 !== match.lineNo) {
               resultLine += `\n  ${j + 1}: ${lines[j]}`;
             }
           }
         }
-
         results.push(resultLine);
       }
     }
@@ -179,20 +139,17 @@ async function grepSearch(pattern: string, options: GrepOptions): Promise<string
 
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
-
       if (entry.isDirectory()) {
-        if (!entry.name.startsWith(".")) {
+        if (!entry.name.startsWith(".") && entry.name !== "node_modules") {
           await walk(fullPath);
         }
       } else if (entry.isFile()) {
-        // Check include pattern
         if (includePattern) {
-          const globMatch = patternToGlob(includePattern);
-          if (!globMatch.test(entry.name)) {
+          const globRegex = patternToGlob(includePattern);
+          if (!globRegex.test(entry.name)) {
             continue;
           }
         }
-
         await searchInFile(fullPath);
       }
     }
@@ -205,21 +162,9 @@ async function grepSearch(pattern: string, options: GrepOptions): Promise<string
     await walk(searchPath);
   }
 
-  return results.slice(0, 1000); // Limit results
+  return results.slice(0, 1000);
 }
 
 function patternToGlob(pattern: string): RegExp {
-  return new RegExp(
-    pattern
-      .replace(/\./g, "\\.")
-      .replace(/\*/g, ".*")
-      .replace(/\?/g, "."),
-  );
+  return new RegExp(pattern.replace(/\./g, "\\.").replace(/\*/g, ".*").replace(/\?/g, "."));
 }
-
-// Tool definition for registration
-export const grepToolDefinition = {
-  name: GREP_TOOL_NAME,
-  description: GREP_TOOL_DESCRIPTION,
-  inputSchema: GrepInputSchema,
-};

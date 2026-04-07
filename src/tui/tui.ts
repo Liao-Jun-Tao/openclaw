@@ -19,6 +19,7 @@ import {
 import { getSlashCommands } from "./commands.js";
 import { ChatLog } from "./components/chat-log.js";
 import { CustomEditor } from "./components/custom-editor.js";
+import { PermissionDialog } from "./components/permission-dialog.js";
 import { GatewayChatClient } from "./gateway-chat.js";
 import { editorTheme, theme } from "./theme/theme.js";
 import { createCommandHandlers } from "./tui-command-handlers.js";
@@ -227,6 +228,8 @@ export async function runTui(opts: TuiOptions) {
   let wasDisconnected = false;
   let toolsExpanded = false;
   let showThinking = false;
+  const thinkingLevels = ["off", "low", "medium", "high", "adaptive"] as const;
+  let thinkingLevelIndex = 0;
   let pairingHintShown = false;
   const localRunIds = new Set<string>();
   const localBtwRunIds = new Set<string>();
@@ -432,10 +435,12 @@ export async function runTui(opts: TuiOptions) {
   const statusContainer = new Container();
   const footer = new Text("", 1, 0);
   const chatLog = new ChatLog();
+  const permissionDialog = new PermissionDialog();
   const editor = new CustomEditor(tui, editorTheme);
   const root = new Container();
   root.addChild(header);
   root.addChild(chatLog);
+  root.addChild(permissionDialog);
   root.addChild(statusContainer);
   root.addChild(footer);
   root.addChild(editor);
@@ -665,22 +670,45 @@ export async function runTui(opts: TuiOptions) {
         ? `${sessionInfo.modelProvider}/${sessionInfo.model}`
         : sessionInfo.model
       : "unknown";
-    const tokens = formatTokens(sessionInfo.totalTokens ?? null, sessionInfo.contextTokens ?? null);
-    const think = sessionInfo.thinkingLevel ?? "off";
+
+    const thinkLevel = thinkingLevels[thinkingLevelIndex];
+    const modelBadge =
+      thinkLevel !== "off" ? `${modelLabel} [thinking: ${thinkLevel}]` : modelLabel;
+
+    const totalTokens = sessionInfo.totalTokens ?? null;
+    const contextTokens = sessionInfo.contextTokens ?? null;
+    const tokenDisplay = formatTokens(totalTokens, contextTokens);
+
+    let contextBar = "";
+    if (typeof totalTokens === "number" && typeof contextTokens === "number" && contextTokens > 0) {
+      const pct = totalTokens / contextTokens;
+      const barWidth = 10;
+      const filled = Math.min(barWidth, Math.round(pct * barWidth));
+      const bar = "█".repeat(filled) + "░".repeat(barWidth - filled);
+      const colorFn =
+        pct >= 0.9
+          ? theme.contextBarCritical
+          : pct >= 0.7
+            ? theme.contextBarWarning
+            : theme.contextBarNormal;
+      contextBar = colorFn(`[${bar}]`);
+    }
+
     const fast = sessionInfo.fastMode === true;
     const verbose = sessionInfo.verboseLevel ?? "off";
     const reasoning = sessionInfo.reasoningLevel ?? "off";
     const reasoningLabel =
       reasoning === "on" ? "reasoning" : reasoning === "stream" ? "reasoning:stream" : null;
+
     const footerParts = [
       `agent ${agentLabel}`,
       `session ${sessionLabel}`,
-      modelLabel,
-      think !== "off" ? `think ${think}` : null,
+      modelBadge,
       fast ? "fast" : null,
       verbose !== "off" ? `verbose ${verbose}` : null,
       reasoningLabel,
-      tokens,
+      theme.footerTokenCount(tokenDisplay),
+      contextBar || null,
     ].filter(Boolean);
     footer.setText(theme.dim(footerParts.join(" | ")));
   };
@@ -838,7 +866,8 @@ export async function runTui(opts: TuiOptions) {
   editor.onCtrlO = () => {
     toolsExpanded = !toolsExpanded;
     chatLog.setToolsExpanded(toolsExpanded);
-    setActivityStatus(toolsExpanded ? "tools expanded" : "tools collapsed");
+    chatLog.toggleThinkingExpansion();
+    setActivityStatus(toolsExpanded ? "expanded" : "collapsed");
     tui.requestRender();
   };
   editor.onCtrlL = () => {
@@ -851,11 +880,31 @@ export async function runTui(opts: TuiOptions) {
     void openSessionSelector();
   };
   editor.onCtrlT = () => {
-    showThinking = !showThinking;
+    thinkingLevelIndex = (thinkingLevelIndex + 1) % thinkingLevels.length;
+    const level = thinkingLevels[thinkingLevelIndex];
+    showThinking = level !== "off";
+    setActivityStatus(`thinking: ${level}`);
     void loadHistory();
+  };
+  editor.onCtrlV = () => {
+    const verbose = sessionInfo.verboseLevel ?? "off";
+    const next = verbose === "off" ? "full" : "off";
+    sessionInfo.verboseLevel = next;
+    setActivityStatus(`verbose: ${next}`);
+    tui.requestRender();
+  };
+  editor.onCtrlR = () => {
+    tui.requestRender();
   };
 
   tui.addInputListener((data) => {
+    if (permissionDialog.visible) {
+      const handled = permissionDialog.handleKey(data);
+      if (handled) {
+        tui.requestRender();
+        return { consume: true };
+      }
+    }
     if (!chatLog.hasVisibleBtw()) {
       return undefined;
     }

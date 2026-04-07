@@ -1,4 +1,4 @@
-import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry.js";
+import { definePluginEntry, type AnyAgentTool } from "openclaw/plugin-sdk/plugin-entry";
 import { resolveClaudeCodeConfig } from "./src/config.js";
 import { createBashTool } from "./src/tools/bash-tool.js";
 import { createFileEditTool } from "./src/tools/file-edit-tool.js";
@@ -13,34 +13,11 @@ export default definePluginEntry({
   id: "claude-code",
   name: "Claude Code Compatibility",
   description:
-    "Claude Code CLI tools and commands for OpenClaw. Provides bash, read, edit, glob, grep tools plus commands like /commit, /review, /coding, /think and more.",
-  configSchema: {
-    type: "object",
-    additionalProperties: false,
-    properties: {
-      sandboxMode: { type: "boolean", default: false },
-      allowedCommands: {
-        type: "array",
-        items: { type: "string" },
-        default: [],
-      },
-      readonlyMode: { type: "boolean", default: false },
-      maxBashTimeoutMs: {
-        type: "integer",
-        minimum: 1000,
-        maximum: 600000,
-        default: 300000,
-      },
-      thinkingLevel: {
-        type: "string",
-        enum: ["off", "low", "medium", "high"],
-        default: "medium",
-      },
-    },
-  },
+    "Claude Code CLI tools and commands for OpenClaw. Provides bash, read, edit, glob, grep tools plus thinking, compaction, and progress tracking.",
   register(api) {
     const config = resolveClaudeCodeConfig(api.pluginConfig);
 
+<<<<<<< Updated upstream
     // Register tools
     api.registerTool(
       (ctx) => createBashTool({ context: ctx, config }),
@@ -129,5 +106,16 @@ Config in .openclaw.json:
   }
 }
 `);
+=======
+    api.registerTool(createBashTool(config) as AnyAgentTool);
+    api.registerTool(createFileReadTool(config) as AnyAgentTool);
+    api.registerTool(createFileEditTool(config) as AnyAgentTool);
+    api.registerTool(createGlobTool(config) as AnyAgentTool);
+    api.registerTool(createGrepTool(config) as AnyAgentTool);
+    api.registerTool(createCompactTool() as AnyAgentTool);
+    api.registerTool(createProgressTool() as AnyAgentTool);
+    api.registerTool(createBudgetTool() as AnyAgentTool);
+    api.registerTool(createThinkingTool() as AnyAgentTool);
+>>>>>>> Stashed changes
   },
 });

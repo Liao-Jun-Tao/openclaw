@@ -3,7 +3,9 @@ import { Container, Spacer, Text } from "@mariozechner/pi-tui";
 import { theme } from "../theme/theme.js";
 import { AssistantMessageComponent } from "./assistant-message.js";
 import { BtwInlineMessage } from "./btw-inline-message.js";
-import { ToolExecutionComponent } from "./tool-execution.js";
+import { CollapsedToolGroup } from "./collapsed-tool-group.js";
+import { ThinkingMessageComponent } from "./thinking-message.js";
+import { isReadOnlyTool, ToolExecutionComponent } from "./tool-execution.js";
 import { UserMessageComponent } from "./user-message.js";
 
 const PENDING_HISTORY_CLOCK_SKEW_TOLERANCE_MS = 60_000;
@@ -20,6 +22,9 @@ export class ChatLog extends Container {
       createdAt: number;
     }
   >();
+  private thinkingRuns = new Map<string, ThinkingMessageComponent>();
+  private toolGroups: CollapsedToolGroup[] = [];
+  private activeToolGroup: CollapsedToolGroup | null = null;
   private btwMessage: BtwInlineMessage | null = null;
   private toolsExpanded = false;
 
@@ -37,6 +42,11 @@ export class ChatLog extends Container {
     for (const [runId, message] of this.streamingRuns.entries()) {
       if (message === component) {
         this.streamingRuns.delete(runId);
+      }
+    }
+    for (const [runId, thinking] of this.thinkingRuns.entries()) {
+      if (thinking === component) {
+        this.thinkingRuns.delete(runId);
       }
     }
     for (const [runId, entry] of this.pendingUsers.entries()) {
@@ -69,6 +79,9 @@ export class ChatLog extends Container {
     this.clear();
     this.toolById.clear();
     this.streamingRuns.clear();
+    this.thinkingRuns.clear();
+    this.toolGroups = [];
+    this.activeToolGroup = null;
     this.btwMessage = null;
     if (!opts?.preservePendingUsers) {
       this.pendingUsers.clear();
@@ -211,10 +224,13 @@ export class ChatLog extends Container {
     const existing = this.streamingRuns.get(effectiveRunId);
     if (existing) {
       existing.setText(text);
+      existing.setStreaming(false);
       this.streamingRuns.delete(effectiveRunId);
       return;
     }
-    this.append(new AssistantMessageComponent(text));
+    const component = new AssistantMessageComponent(text);
+    component.setStreaming(false);
+    this.append(component);
   }
 
   dropAssistant(runId?: string) {
@@ -225,6 +241,48 @@ export class ChatLog extends Container {
     }
     this.removeChild(existing);
     this.streamingRuns.delete(effectiveRunId);
+  }
+
+  startThinking(runId: string, text: string) {
+    const effectiveRunId = this.resolveRunId(runId);
+    const existing = this.thinkingRuns.get(effectiveRunId);
+    if (existing) {
+      existing.setText(text);
+      return existing;
+    }
+    const component = new ThinkingMessageComponent(text);
+    this.thinkingRuns.set(effectiveRunId, component);
+    this.append(component);
+    return component;
+  }
+
+  updateThinking(runId: string, text: string) {
+    const effectiveRunId = this.resolveRunId(runId);
+    const existing = this.thinkingRuns.get(effectiveRunId);
+    if (!existing) {
+      this.startThinking(runId, text);
+      return;
+    }
+    existing.setText(text);
+  }
+
+  finalizeThinking(runId: string, text: string) {
+    const effectiveRunId = this.resolveRunId(runId);
+    const existing = this.thinkingRuns.get(effectiveRunId);
+    if (existing) {
+      existing.setText(text);
+      existing.setStreaming(false);
+      return;
+    }
+    const component = new ThinkingMessageComponent(text);
+    component.setStreaming(false);
+    this.append(component);
+  }
+
+  toggleThinkingExpansion() {
+    for (const thinking of this.thinkingRuns.values()) {
+      thinking.toggleExpanded();
+    }
   }
 
   showBtw(params: { question: string; text: string; isError?: boolean }) {
@@ -263,7 +321,19 @@ export class ChatLog extends Container {
     const component = new ToolExecutionComponent(toolName, args);
     component.setExpanded(this.toolsExpanded);
     this.toolById.set(toolCallId, component);
-    this.append(component);
+
+    if (isReadOnlyTool(toolName)) {
+      if (!this.activeToolGroup) {
+        this.activeToolGroup = new CollapsedToolGroup();
+        this.activeToolGroup.setExpanded(this.toolsExpanded);
+        this.toolGroups.push(this.activeToolGroup);
+        this.append(this.activeToolGroup);
+      }
+      this.activeToolGroup.addTool(component);
+    } else {
+      this.activeToolGroup = null;
+      this.append(component);
+    }
     return component;
   }
 
@@ -297,6 +367,9 @@ export class ChatLog extends Container {
     this.toolsExpanded = expanded;
     for (const tool of this.toolById.values()) {
       tool.setExpanded(expanded);
+    }
+    for (const group of this.toolGroups) {
+      group.setExpanded(expanded);
     }
   }
 }

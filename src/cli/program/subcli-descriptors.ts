@@ -53,6 +53,11 @@ const subCliCommandCatalog = defineCommandDescriptorCatalog([
     hasSubcommands: false,
   },
   {
+    name: "tui2",
+    description: "Open the React+Ink TUI connected to the Gateway (experimental)",
+    hasSubcommands: false,
+  },
+  {
     name: "cron",
     description: "Manage cron jobs via the Gateway scheduler",
     hasSubcommands: true,

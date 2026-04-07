@@ -1,95 +1,64 @@
-import { Type } from "@sinclair/typebox";
-import type { AgentTool, AgentToolResult } from "@mariozechner/pi-agent-core";
-import { readFileWithinRoot } from "openclaw/plugin-sdk/fs-safe.js";
-import { resolvePreferredOpenClawTmpDir } from "openclaw/plugin-sdk/plugin-entry.js";
-import { readStringParam } from "openclaw/plugin-sdk/param-readers.js";
-import type { ToolUseContext } from "openclaw/plugin-sdk/channel-contract.js";
 import path from "node:path";
-import { resolveClaudeCodeConfig, type ClaudeCodeConfig } from "../config.js";
+import { Type } from "@sinclair/typebox";
+import { readStringParam } from "openclaw/plugin-sdk/param-readers";
+import { buildTool } from "../build-tool.js";
+import type { ClaudeCodeConfig } from "../config.js";
+import { textResult } from "../tool-result.js";
 
-const FILE_READ_TOOL_NAME = "read";
-const FILE_READ_TOOL_DESCRIPTION =
-  "Read the contents of a file. Supports syntax highlighting and intelligent truncation for large files.";
+const MAX_FILE_READ_SIZE = 50 * 1024 * 1024; // 50 MB
 
-const FileReadInputSchema = Type.Object({
-  path: Type.String({
-    description: "Path to the file to read",
-  }),
-  offset: Type.Optional(
-    Type.Integer({ description: "Line number to start reading from (1-indexed)", minimum: 1 }),
-  ),
-  limit: Type.Optional(
-    Type.Integer({ description: "Maximum number of lines to read", minimum: 1 }),
-  ),
-});
+const FileReadParameters = Type.Object(
+  {
+    path: Type.String({ description: "Path to the file to read" }),
+    offset: Type.Optional(
+      Type.Integer({
+        description: "Line number to start reading from (1-indexed)",
+        minimum: 1,
+      }),
+    ),
+    limit: Type.Optional(
+      Type.Integer({ description: "Maximum number of lines to read", minimum: 1 }),
+    ),
+  },
+  { additionalProperties: false },
+);
 
-type FileReadInput = Type.Input<typeof FileReadInputSchema>;
+export function createFileReadTool(config: ClaudeCodeConfig) {
+  return buildTool({
+    name: "read",
+    description: "Read the contents of a file. Supports offset and limit for large files.",
+    parameters: FileReadParameters,
+    isReadOnly: true,
+    isConcurrencySafe: true,
+    isDestructive: false,
 
-const MAX_FILE_READ_SIZE = 50 * 1024 * 1024; // 50MB
+    getActivityDescription(input) {
+      const p = input?.path;
+      return typeof p === "string" ? `Reading ${p}` : null;
+    },
 
-export function createFileReadTool(params: {
-  context: ToolUseContext;
-  config: ClaudeCodeConfig;
-}): AgentTool {
-  const { config } = params;
-
-  return {
-    name: FILE_READ_TOOL_NAME,
-    description: FILE_READ_TOOL_DESCRIPTION,
-    inputSchema: FileReadInputSchema,
-
-    async handle(params: Record<string, unknown>): Promise<AgentToolResult> {
-      const startTime = Date.now();
-
+    async execute(_toolCallId: string, rawParams: Record<string, unknown>) {
       try {
-        const filePath = readStringParam(params, "path", { required: true });
+        const filePath = readStringParam(rawParams, "path", { required: true });
         if (!filePath) {
-          return {
-            ok: false,
-            status: "failed",
-            result: { type: "text", text: "path is required" },
-          };
+          return textResult("path is required");
         }
 
-        const offset = (params.offset as number) || 1;
-        const limit = params.limit as number | undefined;
-
-        // Validate path is within workspace
+        const offset = (rawParams.offset as number) ?? 1;
+        const limit = rawParams.limit as number | undefined;
         const resolvedPath = path.resolve(process.cwd(), filePath);
 
-        // Read file
         const content = await readFileWithOffsetLimit(resolvedPath, { offset, limit });
-        const durationMs = Date.now() - startTime;
-
-        return {
-          ok: true,
-          status: "completed",
-          result: { type: "text", text: content },
-          metadata: { durationMs },
-        };
+        return textResult(content);
       } catch (error) {
-        const durationMs = Date.now() - startTime;
         const message = error instanceof Error ? error.message : String(error);
-
-        // Handle specific errors
         if (message.includes("ENOENT") || message.includes("no such file")) {
-          return {
-            ok: false,
-            status: "failed",
-            result: { type: "text", text: `File not found: ${params.path}` },
-            metadata: { durationMs },
-          };
+          return textResult(`File not found: ${rawParams.path}`);
         }
-
-        return {
-          ok: false,
-          status: "failed",
-          result: { type: "text", text: `Read error: ${message}` },
-          metadata: { durationMs },
-        };
+        return textResult(`Read error: ${message}`);
       }
     },
-  };
+  });
 }
 
 async function readFileWithOffsetLimit(
@@ -97,8 +66,6 @@ async function readFileWithOffsetLimit(
   options: { offset?: number; limit?: number },
 ): Promise<string> {
   const { offset = 1, limit } = options;
-
-  // Use fs/promises for non-stream reading with offset/limit
   const fs = await import("node:fs/promises");
 
   const stat = await fs.stat(filePath);
@@ -108,24 +75,14 @@ async function readFileWithOffsetLimit(
 
   const content = await fs.readFile(filePath, "utf-8");
   const lines = content.split("\n");
-
-  const startLine = Math.max(0, offset - 1); // Convert to 0-indexed
+  const startLine = Math.max(0, offset - 1);
   const endLine = limit ? startLine + limit : lines.length;
-
   const selectedLines = lines.slice(startLine, endLine);
   let result = selectedLines.join("\n");
 
-  // Add continuation notice if truncated
   if (endLine < lines.length) {
-    result += `\n\n[${lines.length - endLine} more lines in file. Use offset=${endLine + 1} to continue.]`;
+    result += `\n\n[${lines.length - endLine} more lines. Use offset=${endLine + 1} to continue.]`;
   }
 
   return result;
 }
-
-// Tool definition for registration
-export const fileReadToolDefinition = {
-  name: FILE_READ_TOOL_NAME,
-  description: FILE_READ_TOOL_DESCRIPTION,
-  inputSchema: FileReadInputSchema,
-};

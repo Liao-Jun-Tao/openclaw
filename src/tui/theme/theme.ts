@@ -174,6 +174,19 @@ export const theme = {
   border: fg(palette.border),
   bold: (text: string) => chalk.bold(text),
   italic: (text: string) => chalk.italic(text),
+  thinkingText: (text: string) => chalk.dim(chalk.italic(text)),
+  thinkingPrefix: (text: string) => chalk.dim(chalk.italic(fg(palette.dim)(text))),
+  thinkingCollapsed: (text: string) => chalk.dim(text),
+  gutterAssistant: fg(palette.accent),
+  gutterUser: fg(palette.accentSoft),
+  riskLow: fg(palette.success),
+  riskMedium: fg(palette.accent),
+  riskHigh: fg(palette.accentSoft),
+  riskCritical: fg(palette.error),
+  footerTokenCount: fg(palette.dim),
+  contextBarNormal: fg(palette.success),
+  contextBarWarning: fg(palette.accent),
+  contextBarCritical: fg(palette.error),
 };
 
 export const markdownTheme: MarkdownTheme = {

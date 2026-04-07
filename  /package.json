@@ -1,0 +1,18 @@
+{
+  "name": "@openclaw/claude-code",
+  "version": "2026.4.1",
+  "private": true,
+  "description": "OpenClaw Claude Code compatibility plugin - ports Claude Code CLI tools and commands",
+  "type": "module",
+  "dependencies": {
+    "@openclaw/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "openclaw": "workspace:*"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

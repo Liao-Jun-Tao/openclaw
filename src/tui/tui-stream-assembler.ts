@@ -11,6 +11,8 @@ type RunStreamState = {
   contentBlocks: string[];
   sawNonTextContentBlocks: boolean;
   displayText: string;
+  /** Byte offset of the last stable block boundary (double newline). */
+  stablePrefixLength: number;
 };
 
 type BoundaryDropMode = "off" | "streamed-only" | "streamed-or-incoming";
@@ -112,6 +114,7 @@ export class TuiStreamAssembler {
         contentBlocks: [],
         sawNonTextContentBlocks: false,
         displayText: "",
+        stablePrefixLength: 0,
       };
       this.runs.set(runId, state);
     }
@@ -158,6 +161,9 @@ export class TuiStreamAssembler {
     });
 
     state.displayText = displayText;
+
+    const lastDoubleNewline = displayText.lastIndexOf("\n\n");
+    state.stablePrefixLength = lastDoubleNewline > 0 ? lastDoubleNewline + 2 : 0;
   }
 
   ingestDelta(runId: string, message: unknown, showThinking: boolean): string | null {
@@ -197,6 +203,11 @@ export class TuiStreamAssembler {
 
     this.runs.delete(runId);
     return finalText;
+  }
+
+  /** Returns the stable prefix length for incremental rendering. */
+  getStablePrefixLength(runId: string): number {
+    return this.runs.get(runId)?.stablePrefixLength ?? 0;
   }
 
   drop(runId: string) {
